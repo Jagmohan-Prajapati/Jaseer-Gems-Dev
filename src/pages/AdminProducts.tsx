@@ -43,6 +43,15 @@ export default function AdminProducts() {
     fetchProducts();
   };
 
+  const toggleFeatured = async (id: string, current: boolean) => {
+    await fetch(`/api/products/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFeatured: !current }),
+    });
+    fetchProducts();
+  };
+
   const deleteProduct = async (id: string) => {
     if (confirm('Are you sure you want to remove this piece from inventory?')) {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
@@ -121,6 +130,15 @@ export default function AdminProducts() {
                          >
                            {p.isActive ? 'Active' : 'Inactive'}
                          </button>
+                         <button 
+                          onClick={() => toggleFeatured(p.id, p.isFeatured)}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all",
+                            p.isFeatured ? "bg-[#C9A84C]/20 text-[#C9A84C]" : "bg-outline-variant/20 text-on-surface-variant"
+                          )}
+                        >
+                          {p.isFeatured ? 'Featured' : 'Not Featured'}
+                        </button>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
