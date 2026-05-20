@@ -1,0 +1,6 @@
+{
+  "name": "JaseerGems",
+  "description": "Luxury gemstone e-commerce for JaseerGems, featuring rare hand-selected treasures from Jaipur with authenticated certification and secure global shipping.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

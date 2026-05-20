@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Manrope:wght@200;300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #e6c364;
+  --color-on-primary: #3d2e00;
+  --color-primary-container: #c9a84c;
+  --color-on-primary-container: #503d00;
+  
+  --color-surface: #061423;
+  --color-on-surface: #d6e4f9;
+  --color-surface-variant: #283646;
+  --color-on-surface-variant: #d0c5b2;
+  
+  --color-surface-container-lowest: #020f1e;
+  --color-surface-container-low: #0f1c2c;
+  --color-surface-container: #132030;
+  --color-surface-container-high: #1e2b3b;
+  --color-surface-container-highest: #283646;
+  
+  --color-outline: #99907e;
+  --color-outline-variant: #4d4637;
+  
+  --font-headline: "Cormorant Garamond", serif;
+  --font-body: "Manrope", sans-serif;
+  --font-label: "Manrope", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-body antialiased;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+.font-cormorant {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.tonal-transition {
+  transition: background 0.3s ease;
+}
+
+.gem-facet-divider {
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background-color: #e6c364;
+}
+
+.gold-shimmer {
+  background: linear-gradient(135deg, #e6c364 0%, #c9a84c 50%, #e6c364 100%);
+  background-size: 200% auto;
+}
+
+.glass-nav {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
