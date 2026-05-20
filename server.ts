@@ -349,7 +349,7 @@ async function startServer() {
   });
 
   // Admin Orders
-  app.get("/api/admin/orders", isAdmin, async (req, res) => {
+  app.get("/api/orders", isAdmin, async (req, res) => {
     const { status } = req.query;
     const prisma = getPrisma();
     const where: any = {};
