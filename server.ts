@@ -274,7 +274,7 @@ async function startServer() {
 
       const rpOrder = await razorpay.orders.create({
         amount: Math.round(total * 100), // paise
-        currency: "INR",
+        currency: "USD",
         receipt: dbOrder.id,
       });
 

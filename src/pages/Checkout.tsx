@@ -59,7 +59,7 @@ export default function Checkout() {
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderData.amount * 100,
-        currency: "INR",
+        currency: "USD",
         name: "JaseerGems",
         description: "Luxury Gemstones Purchase",
         order_id: orderData.razorpayOrderId,

@@ -12,6 +12,7 @@ import AdminDashboard from './pages/AdminDashboard.tsx';
 import AdminProducts from './pages/AdminProducts.tsx';
 import AdminOrders from './pages/AdminOrders.tsx';
 import { useAuth, AuthProvider } from './context/AuthContext.tsx';
+import { AdminRoute, AuthRoute } from './components/ProtectedRoute.tsx';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, loading } = useAuth();
@@ -47,33 +48,13 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         
         {/* User Protected Routes */}
-        <Route path="/checkout" element={
-          <ProtectedRoute>
-            <MainLayout><Checkout /></MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/order-confirmation/:id" element={
-          <ProtectedRoute>
-            <MainLayout><OrderConfirmation /></MainLayout>
-          </ProtectedRoute>
-        } />
+        <Route path="/checkout" element={<AuthRoute><Checkout /></AuthRoute>} />
+        <Route path="/order-confirmation/:id" element={<AuthRoute><OrderConfirmation /></AuthRoute>} />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={
-          <ProtectedRoute adminOnly>
-            <AdminDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/products" element={
-          <ProtectedRoute adminOnly>
-            <AdminProducts />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/orders" element={
-          <ProtectedRoute adminOnly>
-            <AdminOrders />
-          </ProtectedRoute>
-        } />
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
+        <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
       </Routes>
     </AuthProvider>
   );
