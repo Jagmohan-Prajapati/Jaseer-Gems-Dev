@@ -10,6 +10,44 @@ import { v2 as cloudinary } from "cloudinary";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const sendOtpEmail = async (email: string, otp: string, type: "verify" | "reset") => {
+  const subject = type === "verify"
+    ? "Verify your JaseerGems account"
+    : "Reset your JaseerGems password";
+
+  const html = `
+    <div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;background:#0D1B2A;color:#F5F0E8;padding:40px;border-radius:8px;">
+      <h1 style="color:#C9A84C;font-size:28px;margin-bottom:4px;">JaseerGems</h1>
+      <p style="color:#8a9ab0;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;">Jaipur • Established 1978</p>
+      <h2 style="font-size:18px;margin-bottom:12px;">${type === "verify" ? "Verify Your Email" : "Reset Your Password"}</h2>
+      <p style="color:#b0bec5;margin-bottom:28px;">Use this OTP code — it expires in <strong style="color:#F5F0E8;">10 minutes</strong>.</p>
+      <div style="background:#112234;border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:28px;text-align:center;margin-bottom:28px;">
+        <span style="font-size:42px;letter-spacing:14px;color:#C9A84C;font-weight:bold;">${otp}</span>
+      </div>
+      <p style="color:#5a6a7a;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: `"JaseerGems" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject,
+    html,
+  });
+};
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "default_secret_change_me");
 
 async function startServer() {
@@ -38,34 +76,7 @@ async function startServer() {
 
   // Auth: Register
   app.post("/api/auth/register", async (req, res) => {
-    try {
-      const { name, email, password } = req.body;
-      const prisma = getPrisma();
-      
-      const existingUser = await prisma.user.findUnique({ where: { email } });
-      if (existingUser) return res.status(400).json({ error: "Email already exists" });
-
-      const passwordHash = await bcrypt.hash(password, 12);
-      const user = await prisma.user.create({
-        data: { name, email, passwordHash, role: "USER" },
-      });
-
-      const token = await new SignJWT({ id: user.id, email: user.email, role: user.role })
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime("7d")
-        .sign(JWT_SECRET);
-
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
-      });
-      res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
-    } catch (error) {
-      res.status(500).json({ error: "Registration failed" });
-    }
+    return res.status(400).json({ error: "Please use the OTP verification flow to register." });
   });
 
   // Auth: Login
@@ -121,6 +132,100 @@ async function startServer() {
   app.post("/api/auth/logout", (req, res) => {
     res.clearCookie("token");
     res.json({ success: true });
+  });
+
+  // Send OTP for registration
+  app.post("/api/auth/send-otp", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const prisma = getPrisma();
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) return res.status(400).json({ error: "Email already registered" });
+
+      const otp = generateOtp();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      await prisma.otpCode.create({ data: { email, code: otp, type: "VERIFY_EMAIL", expiresAt } });
+      await sendOtpEmail(email, otp, "verify");
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to send OTP" });
+    }
+  });
+
+  // Verify OTP + create account
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    try {
+      const { name, email, phone, password, otp } = req.body;
+      const prisma = getPrisma();
+
+      const record = await prisma.otpCode.findFirst({
+        where: { email, code: otp, type: "VERIFY_EMAIL", used: false, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!record) return res.status(400).json({ error: "Invalid or expired OTP" });
+
+      await prisma.otpCode.update({ where: { id: record.id }, data: { used: true } });
+
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await prisma.user.create({
+        data: { name, email, phone, passwordHash, role: "USER", isVerified: true },
+      });
+
+      const token = await new SignJWT({ id: user.id, email: user.email, role: user.role })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("7d")
+        .sign(JWT_SECRET);
+
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+    } catch (e) {
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  // Forgot password — send OTP
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const prisma = getPrisma();
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) return res.json({ success: true }); // don't reveal if email exists
+
+      const otp = generateOtp();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      await prisma.otpCode.create({ data: { email, code: otp, type: "RESET_PASSWORD", expiresAt } });
+      await sendOtpEmail(email, otp, "reset");
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to send OTP" });
+    }
+  });
+
+  // Reset password — verify OTP + update password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, otp, newPassword } = req.body;
+      const prisma = getPrisma();
+
+      const record = await prisma.otpCode.findFirst({
+        where: { email, code: otp, type: "RESET_PASSWORD", used: false, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!record) return res.status(400).json({ error: "Invalid or expired OTP" });
+
+      await prisma.otpCode.update({ where: { id: record.id }, data: { used: true } });
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({ where: { email }, data: { passwordHash } });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Password reset failed" });
+    }
   });
 
   app.get("/api/auth/me", async (req, res) => {
