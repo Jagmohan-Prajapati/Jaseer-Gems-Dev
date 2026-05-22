@@ -15,6 +15,11 @@ import { useAuth, AuthProvider } from './context/AuthContext.tsx';
 import { AdminRoute, AuthRoute } from './components/ProtectedRoute.tsx';
 import Account from './pages/Account.tsx';
 import NotFound from './pages/NotFound.tsx';
+import About from './pages/About.tsx';
+import Contact from './pages/Contact.tsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.tsx';
+import RefundPolicy from './pages/RefundPolicy.tsx';
+import ShippingPolicy from './pages/ShippingPolicy.tsx';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, loading } = useAuth();
@@ -49,6 +54,11 @@ export default function App() {
         <Route path="/cart" element={<MainLayout><Cart /></MainLayout>} />
         <Route path="/login" element={<Login />} />
         <Route path="*" element={<MainLayout><NotFound /></MainLayout>} />
+        <Route path="/about" element={<MainLayout><About /></MainLayout>} />
+        <Route path="/contact" element={<MainLayout><Contact /></MainLayout>} />
+        <Route path="/privacy-policy" element={<MainLayout><PrivacyPolicy /></MainLayout>} />
+        <Route path="/refund-policy" element={<MainLayout><RefundPolicy /></MainLayout>} />
+        <Route path="/shipping-policy" element={<MainLayout><ShippingPolicy /></MainLayout>} />
         
         {/* User Protected Routes */}
         <Route path="/checkout" element={<AuthRoute><Checkout /></AuthRoute>} />
