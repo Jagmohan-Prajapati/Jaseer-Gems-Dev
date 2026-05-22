@@ -37,9 +37,9 @@ export default function Navbar() {
         </Link>
         {user ? (
           <div className="flex items-center gap-4">
-             <button onClick={() => logout()} className="hover:opacity-80 transition-opacity text-on-surface-variant">
-              <LogOut size={20} />
-            </button>
+            <Link to="/account" className="hover:opacity-80 transition-opacity" title="My Account">
+              <User size={20} />
+            </Link>
           </div>
         ) : (
           <Link to="/login" className="hover:opacity-80 transition-opacity">

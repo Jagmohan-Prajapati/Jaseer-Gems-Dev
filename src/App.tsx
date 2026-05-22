@@ -13,6 +13,7 @@ import AdminProducts from './pages/AdminProducts.tsx';
 import AdminOrders from './pages/AdminOrders.tsx';
 import { useAuth, AuthProvider } from './context/AuthContext.tsx';
 import { AdminRoute, AuthRoute } from './components/ProtectedRoute.tsx';
+import Account from './pages/Account.tsx';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, loading } = useAuth();
@@ -50,6 +51,7 @@ export default function App() {
         {/* User Protected Routes */}
         <Route path="/checkout" element={<AuthRoute><Checkout /></AuthRoute>} />
         <Route path="/order-confirmation/:id" element={<AuthRoute><OrderConfirmation /></AuthRoute>} />
+        <Route path="/account" element={<AuthRoute><MainLayout><Account /></MainLayout></AuthRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
