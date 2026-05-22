@@ -56,7 +56,12 @@ async function startServer() {
         .setExpirationTime("7d")
         .sign(JWT_SECRET);
 
-      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: "strict" });
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+      });
       res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
     } catch (error) {
       res.status(500).json({ error: "Registration failed" });
@@ -79,7 +84,12 @@ async function startServer() {
             .setExpirationTime("7d")
             .sign(JWT_SECRET);
             
-          res.cookie("token", token, { httpOnly: true, secure: true, sameSite: "strict" });
+          res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+          });
           return res.json({ id: "admin", email, role: "ADMIN", name: "Admin" });
         }
       }
@@ -96,7 +106,12 @@ async function startServer() {
         .setExpirationTime("7d")
         .sign(JWT_SECRET);
 
-      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: "strict" });
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+      });
       res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
     } catch (error) {
       res.status(500).json({ error: "Login failed" });
