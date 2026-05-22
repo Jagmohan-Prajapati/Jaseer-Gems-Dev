@@ -433,6 +433,36 @@ async function startServer() {
     }
   });
 
+  // Search products
+  app.get("/api/products/search", async (req, res) => {
+    const { q } = req.query;
+    if (!q || (q as string).trim().length < 2) return res.json({ products: [] });
+    const prisma = getPrisma();
+    try {
+      const products = await prisma.product.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { name: { contains: q as string, mode: "insensitive" } },
+            { description: { contains: q as string, mode: "insensitive" } },
+            { stoneType: { contains: q as string, mode: "insensitive" } },
+            { stoneColor: { contains: q as string, mode: "insensitive" } },
+            { origin: { contains: q as string, mode: "insensitive" } },
+          ],
+        },
+        take: 8,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, name: true, price: true, images: true,
+          stoneType: true, stoneColor: true, caratWeight: true,
+        },
+      });
+      res.json({ products });
+    } catch (e) {
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
+
   app.get("/api/products/:id", async (req, res) => {
     const prisma = getPrisma();
     try {

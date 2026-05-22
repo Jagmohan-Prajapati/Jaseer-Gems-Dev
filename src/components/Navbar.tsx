@@ -3,9 +3,12 @@ import { useCartStore } from '../store/cartStore.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { ShoppingCart, Search, User, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils.ts';
+import { useState } from 'react';
+import SearchModal from './SearchModal.tsx';
 
 export default function Navbar() {
   const itemCount = useCartStore((state) => state.itemCount());
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user, logout } = useAuth();
 
   return (
@@ -24,8 +27,8 @@ export default function Navbar() {
         </div>
       </div>
       <div className="flex items-center gap-6 text-primary">
-        <button className="hover:opacity-80 transition-opacity duration-300 active:scale-90 transition-transform">
-          <Search size={20} />
+        <button onClick={() => setSearchOpen(true)} className="hover:opacity-80 transition-opacity text-on-surface-variant hover:text-primary transition-colors" title="Search">
+        <Search size={20} />
         </button>
         <Link to="/cart" className="relative hover:opacity-80 transition-opacity duration-300 active:scale-90 transition-transform">
           <ShoppingCart size={20} />
@@ -47,6 +50,7 @@ export default function Navbar() {
           </Link>
         )}
       </div>
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </nav>
   );
 }
