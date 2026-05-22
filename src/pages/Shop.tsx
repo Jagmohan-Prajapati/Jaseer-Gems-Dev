@@ -255,12 +255,16 @@ export default function Shop() {
 
           {/* Product Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-surface-container-high rounded-lg overflow-hidden animate-pulse h-96"></div>
-              ))}
-            </div>
-          ) : products.length > 0 ? (
+              <div className={cn(
+                view === 'grid'
+                  ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+                  : "space-y-6"
+              )}>
+                {[...Array(6)].map((_, i) => (
+                  <ShopProductSkeleton key={i} view={view} />
+                ))}
+              </div>
+            ) : products.length > 0 ? (
             <div className={cn(
                view === 'grid' 
                 ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
@@ -371,5 +375,41 @@ function ProductCard({ product, view }: { product: Product, view: 'grid' | 'list
         </div>
       </div>
     </motion.article>
+  );
+}
+
+function ShopProductSkeleton({ view }: { view: 'grid' | 'list' }) {
+  if (view === 'list') {
+    return (
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 p-4 animate-pulse">
+        <div className="flex gap-5">
+          <div className="w-28 h-28 bg-surface-container-high rounded-lg shrink-0"></div>
+          <div className="flex-1 space-y-4 py-2">
+            <div className="h-3 w-24 bg-surface-container-high rounded"></div>
+            <div className="h-5 w-1/2 bg-surface-container-high rounded"></div>
+            <div className="h-3 w-2/3 bg-surface-container-high rounded"></div>
+            <div className="flex items-center justify-between pt-2">
+              <div className="h-5 w-20 bg-surface-container-high rounded"></div>
+              <div className="h-4 w-28 bg-surface-container-high rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-surface-container-low rounded-xl overflow-hidden border border-outline-variant/10 animate-pulse">
+      <div className="aspect-[4/5] bg-surface-container-high"></div>
+      <div className="p-5 space-y-4">
+        <div className="h-3 w-20 bg-surface-container-high rounded"></div>
+        <div className="h-5 w-3/4 bg-surface-container-high rounded"></div>
+        <div className="h-3 w-2/3 bg-surface-container-high rounded"></div>
+        <div className="flex items-center justify-between pt-2">
+          <div className="h-5 w-20 bg-surface-container-high rounded"></div>
+          <div className="h-4 w-24 bg-surface-container-high rounded"></div>
+        </div>
+      </div>
+    </div>
   );
 }

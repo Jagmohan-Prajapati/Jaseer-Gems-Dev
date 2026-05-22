@@ -129,14 +129,13 @@ export default function Home() {
               View All Pieces
             </Link>
           </div>
-          
-          {loading ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-               {[...Array(4)].map((_, i) => (
-                 <div key={i} className="bg-surface-container-high rounded-lg overflow-hidden animate-pulse h-96"></div>
-               ))}
-             </div>
-          ) : products.length > 0 ? (
+             {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {[...Array(4)].map((_, i) => (
+                  <ProductSkeleton key={i} />
+                ))}
+              </div>
+            ) : products.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {products.map(product => (
                 <ProductCard key={product.id} product={product} />
@@ -234,5 +233,22 @@ function ProductCard({ product }: { product: Product }) {
         </Link>
       </div>
     </motion.div>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="bg-surface-container-high rounded-lg overflow-hidden animate-pulse border border-outline-variant/10">
+      <div className="aspect-[4/5] bg-surface-container-highest"></div>
+      <div className="p-5 space-y-4">
+        <div className="h-3 w-20 bg-surface-container-highest rounded"></div>
+        <div className="h-5 w-3/4 bg-surface-container-highest rounded"></div>
+        <div className="h-3 w-2/3 bg-surface-container-highest rounded"></div>
+        <div className="flex items-center justify-between pt-2">
+          <div className="h-5 w-20 bg-surface-container-highest rounded"></div>
+          <div className="h-4 w-24 bg-surface-container-highest rounded"></div>
+        </div>
+      </div>
+    </div>
   );
 }
