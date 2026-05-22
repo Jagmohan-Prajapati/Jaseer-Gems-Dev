@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Grid, List, ChevronLeft, ChevronRight, X, Filter, Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Grid, List, ChevronLeft, ChevronRight, X, Filter } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { formatPrice, cn } from '../lib/utils.ts';
-import { useSearchParams } from 'react-router-dom';
 
 interface Product {
   id: string;
@@ -24,15 +23,16 @@ export default function Shop() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const navigate = useNavigate();
 
   // Filters
   const [stoneColor, setStoneColor] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [caratRange, setCaratRange] = useState({ min: '', max: '' });
   const [sort, setSort] = useState('newest');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -46,7 +46,7 @@ export default function Shop() {
     if (priceRange.max) params.append('maxPrice', priceRange.max);
     if (caratRange.min) params.append('minCarat', caratRange.min);
     if (caratRange.max) params.append('maxCarat', caratRange.max);
-    if (searchQuery.trim()) params.append('search', searchQuery.trim());
+    if (searchQuery) params.append('search', searchQuery);
 
     try {
       const res = await fetch(`/api/products?${params.toString()}`);
@@ -211,22 +211,7 @@ export default function Shop() {
                 </button>
               </div>
             </div>
-            {/* Search input */}
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                placeholder="Search gems..."
-                className="bg-surface-container-low border border-outline-variant/20 rounded-lg pl-9 pr-4 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none transition-colors w-48"
-              />
-              {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors">
-                  <X size={13} />
-                </button>
-              )}
-            </div>
+            
             <div className="mt-4 sm:mt-0 relative group">
               <select 
                 value={sort}
@@ -250,7 +235,21 @@ export default function Shop() {
                {priceRange.max && <Chip label={`Max: $${priceRange.max}`} onRemove={() => setPriceRange(p => ({ ...p, max: '' }))} />}
                {caratRange.min && <Chip label={`Min: ${caratRange.min} CT`} onRemove={() => setCaratRange(p => ({ ...p, min: '' }))} />}
                {caratRange.max && <Chip label={`Max: ${caratRange.max} CT`} onRemove={() => setCaratRange(p => ({ ...p, max: '' }))} />}
-               {searchQuery && <Chip label={`Search: ${searchQuery}`} onRemove={() => { setSearchQuery(''); setPage(1); }} />}
+               {searchQuery && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs">
+                  <span>Search: {searchQuery}</span>
+                  <button onClick={() => navigate('/shop')} className="hover:text-primary/60 transition-colors">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {searchQuery && (
+            <div className="mb-4 text-xs text-on-surface-variant">
+              Showing results for <span className="text-primary font-semibold">"{searchQuery}"</span>
+              {total > 0 && <span> — {total} gems found</span>}
             </div>
           )}
 

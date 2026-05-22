@@ -393,46 +393,6 @@ async function startServer() {
     }
   });
 
-  // Products API
-  app.get("/api/products", async (req, res) => {
-    const { featured, stoneColor, minPrice, maxPrice, minCarat, maxCarat, sort, page = 1, limit = 12 } = req.query;
-    const prisma = getPrisma();
-    
-    const where: any = { isActive: true };
-    if (featured === "true") where.isFeatured = true;
-    if (stoneColor) {
-      const colors = (stoneColor as string).split(",");
-      where.stoneColor = { in: colors };
-    }
-    if (minPrice || maxPrice) {
-      where.price = {};
-      if (minPrice) where.price.gte = parseFloat(minPrice as string);
-      if (maxPrice) where.price.lte = parseFloat(maxPrice as string);
-    }
-    if (minCarat || maxCarat) {
-      where.caratWeight = {};
-      if (minCarat) where.caratWeight.gte = parseFloat(minCarat as string);
-      if (maxCarat) where.caratWeight.lte = parseFloat(maxCarat as string);
-    }
-
-    let orderBy: any = {};
-    if (sort === "price_asc") orderBy = { price: "asc" };
-    else if (sort === "price_desc") orderBy = { price: "desc" };
-    else orderBy = { createdAt: "desc" };
-
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-
-    try {
-      const [products, total] = await Promise.all([
-        prisma.product.findMany({ where, orderBy, skip, take: parseInt(limit as string) }),
-        prisma.product.count({ where }),
-      ]);
-      res.json({ products, total });
-    } catch (e) {
-      res.status(500).json({ error: "Failed to fetch products" });
-    }
-  });
-
   // Search products
   app.get("/api/products/search", async (req, res) => {
     const { q } = req.query;
@@ -460,6 +420,83 @@ async function startServer() {
       res.json({ products });
     } catch (e) {
       res.status(500).json({ error: "Search failed" });
+    }
+  });
+
+  // GET /api/products — with optional search that floats matched results to top
+  app.get("/api/products", async (req, res) => {
+    const { featured, stoneColor, minPrice, maxPrice, minCarat, maxCarat, sort, page = 1, limit = 12, search } = req.query;
+    const prisma = getPrisma();
+
+    const baseWhere: any = { isActive: true };
+    if (featured === "true") baseWhere.isFeatured = true;
+    if (stoneColor) {
+      const colors = (stoneColor as string).split(",");
+      baseWhere.stoneColor = { in: colors };
+    }
+    if (minPrice || maxPrice) {
+      baseWhere.price = {};
+      if (minPrice) baseWhere.price.gte = parseFloat(minPrice as string);
+      if (maxPrice) baseWhere.price.lte = parseFloat(maxPrice as string);
+    }
+    if (minCarat || maxCarat) {
+      baseWhere.caratWeight = {};
+      if (minCarat) baseWhere.caratWeight.gte = parseFloat(minCarat as string);
+      if (maxCarat) baseWhere.caratWeight.lte = parseFloat(maxCarat as string);
+    }
+
+    let orderBy: any = {};
+    if (sort === "price_asc") orderBy = { price: "asc" };
+    else if (sort === "price_desc") orderBy = { price: "desc" };
+    else orderBy = { createdAt: "desc" };
+
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+
+    try {
+      // If no search term — normal fetch
+      if (!search || (search as string).trim().length < 2) {
+        const [products, total] = await Promise.all([
+          prisma.product.findMany({ where: baseWhere, orderBy, skip, take }),
+          prisma.product.count({ where: baseWhere }),
+        ]);
+        return res.json({ products, total });
+      }
+
+      const q = (search as string).trim();
+
+      // Search filter: name OR stoneColor match
+      const searchWhere = {
+        ...baseWhere,
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { stoneColor: { contains: q, mode: "insensitive" as const } },
+        ],
+      };
+
+      // Non-search (rest) filter: does NOT match search
+      const restWhere = {
+        ...baseWhere,
+        AND: [
+          { name: { not: { contains: q, mode: "insensitive" as const } } },
+          { stoneColor: { not: { contains: q, mode: "insensitive" as const } } },
+        ],
+      };
+
+      const [matchedProducts, matchedTotal, restProducts, restTotal] = await Promise.all([
+        prisma.product.findMany({ where: searchWhere, orderBy, take: 50 }),
+        prisma.product.count({ where: searchWhere }),
+        prisma.product.findMany({ where: restWhere, orderBy, skip: Math.max(0, skip - matchedTotal), take }),
+        prisma.product.count({ where: restWhere }),
+      ]);
+
+      // Merge: matched first, then rest — paginated correctly
+      const allProducts = [...matchedProducts, ...restProducts].slice(skip > matchedTotal ? 0 : skip - Math.min(skip, matchedTotal)).slice(0, take);
+      const total = matchedTotal + restTotal;
+
+      res.json({ products: allProducts, total, matchedCount: matchedTotal });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch products" });
     }
   });
 
