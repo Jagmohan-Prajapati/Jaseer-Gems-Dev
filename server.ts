@@ -287,6 +287,14 @@ async function startServer() {
         },
       });
 
+      // Decrement stock for each ordered item
+      for (const item of items) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stockQty: { decrement: item.quantity } },
+        });
+      }
+
       const rpOrder = await razorpay.orders.create({
         amount: Math.round(total * 100), // paise
         currency: "USD",
