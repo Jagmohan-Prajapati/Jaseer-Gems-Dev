@@ -550,10 +550,47 @@ async function startServer() {
 
   app.delete("/api/products/:id", isAdmin, async (req, res) => {
     const prisma = getPrisma();
+
     try {
-      await prisma.product.delete({ where: { id: req.params.id } });
+      const product = await prisma.product.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, images: true },
+      });
+
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Delete Cloudinary images first
+      if (Array.isArray(product.images) && product.images.length > 0) {
+        const destroyPromises = product.images.map(async (imageUrl: string) => {
+          try {
+            // Extract public_id from Cloudinary URL
+            // Example:
+            // https://res.cloudinary.com/<cloud>/image/upload/v1234567890/jaseergems/abc123.jpg
+            // => jaseergems/abc123
+            const match = imageUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.(jpg|jpeg|png|webp|avif)$/i);
+            if (!match) return null;
+
+            const publicId = match[1];
+            return cloudinary.uploader.destroy(publicId);
+          } catch (err) {
+            console.error("Cloudinary delete failed for:", imageUrl, err);
+            return null;
+          }
+        });
+
+        await Promise.all(destroyPromises);
+      }
+
+      // Delete product from DB
+      await prisma.product.delete({
+        where: { id: req.params.id },
+      });
+
       res.json({ success: true });
     } catch (e) {
+      console.error("Failed to delete product:", e);
       res.status(500).json({ error: "Failed to delete product" });
     }
   });
