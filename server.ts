@@ -228,6 +228,160 @@ async function startServer() {
     }
   });
 
+  // Auth middleware — any logged in user
+  const isAuth = async (req: any, res: any, next: any) => {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { payload } = await jwtVerify(token, JWT_SECRET);
+      req.user = payload;
+      next();
+    } catch (e) {
+      res.status(401).json({ error: "Invalid token" });
+    }
+  };
+
+  // GET user profile
+  app.get("/api/user/profile", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { id: true, name: true, email: true, phone: true, createdAt: true },
+      });
+      res.json(user);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  // UPDATE user profile
+  app.patch("/api/user/profile", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const { name, phone } = req.body;
+      const user = await prisma.user.update({
+        where: { id: req.user.id },
+        data: { name, phone },
+        select: { id: true, name: true, email: true, phone: true },
+      });
+      res.json(user);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  // CHANGE password (from account page)
+  app.patch("/api/user/change-password", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) return res.status(400).json({ error: "Current password is incorrect" });
+
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash } });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
+  // GET all addresses for logged-in user
+  app.get("/api/user/addresses", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const addresses = await prisma.address.findMany({
+        where: { userId: req.user.id },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      });
+      res.json(addresses);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch addresses" });
+    }
+  });
+
+  // ADD new address
+  app.post("/api/user/addresses", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const { label, name, phone, line1, line2, city, state, zip, country, isDefault } = req.body;
+
+      // If new address is default, unset all others first
+      if (isDefault) {
+        await prisma.address.updateMany({
+          where: { userId: req.user.id },
+          data: { isDefault: false },
+        });
+      }
+
+      const address = await prisma.address.create({
+        data: { userId: req.user.id, label, name, phone, line1, line2, city, state, zip, country: country || "United States", isDefault: isDefault || false },
+      });
+      res.json(address);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to add address" });
+    }
+  });
+
+  // UPDATE address
+  app.put("/api/user/addresses/:id", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const { label, name, phone, line1, line2, city, state, zip, country, isDefault } = req.body;
+
+      if (isDefault) {
+        await prisma.address.updateMany({
+          where: { userId: req.user.id },
+          data: { isDefault: false },
+        });
+      }
+
+      const address = await prisma.address.update({
+        where: { id: req.params.id },
+        data: { label, name, phone, line1, line2, city, state, zip, country, isDefault },
+      });
+      res.json(address);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to update address" });
+    }
+  });
+
+  // DELETE address
+  app.delete("/api/user/addresses/:id", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      await prisma.address.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to delete address" });
+    }
+  });
+
+  // GET logged-in user's orders
+  app.get("/api/orders/my", isAuth, async (req, res) => {
+    const prisma = getPrisma();
+    try {
+      const orders = await prisma.order.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          items: {
+            include: {
+              product: { select: { name: true, images: true } },
+            },
+          },
+        },
+      });
+      res.json(orders);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
   app.get("/api/auth/me", async (req, res) => {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
@@ -431,6 +585,9 @@ async function startServer() {
           isPaid: true,
           status: "PROCESSING",
           razorpayPaymentId,
+          razorpaySignature,
+          paidAt: new Date(),
+          currency: "USD",
         },
       });
       res.json({ success: true, orderId: order.id });
