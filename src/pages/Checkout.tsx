@@ -4,7 +4,7 @@ import { useCartStore } from '../store/cartStore.ts';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { formatPrice, cn } from '../lib/utils.ts';
-import { ShieldCheck, Truck, ArrowRight, CreditCard } from 'lucide-react';
+import { ShieldCheck, Truck, ArrowRight, CreditCard, MapPin, Plus, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 
 declare const Razorpay: any;
@@ -27,6 +27,53 @@ export default function Checkout() {
     zip: '',
     country: 'India',
   });
+
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [useNewAddress, setUseNewAddress] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/user/addresses')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSavedAddresses(data);
+          // Auto-select default address
+          const def = data.find((a: any) => a.isDefault) || data[0];
+          setSelectedAddressId(def.id);
+          setFormData({
+            name: def.name,
+            email: user?.email || '',
+            phone: def.phone,
+            address1: def.line1,
+            address2: def.line2 || '',
+            city: def.city,
+            state: def.state,
+            zip: def.zip,
+            country: def.country,
+          });
+        } else {
+          setUseNewAddress(true); // No saved addresses — show form directly
+        }
+      })
+      .catch(() => setUseNewAddress(true));
+  }, []);
+
+  const selectSavedAddress = (addr: any) => {
+    setSelectedAddressId(addr.id);
+    setUseNewAddress(false);
+    setFormData({
+      name: addr.name,
+      email: user?.email || '',
+      phone: addr.phone,
+      address1: addr.line1,
+      address2: addr.line2 || '',
+      city: addr.city,
+      state: addr.state,
+      zip: addr.zip,
+      country: addr.country,
+    });
+  };
 
   useEffect(() => {
     if (items.length === 0) {
@@ -121,18 +168,81 @@ export default function Checkout() {
                 <h1 className="font-headline text-5xl font-light italic tracking-tight text-on-surface mb-4">Shipping Information</h1>
                 <div className="w-1 bg-primary h-1 rotate-45 mb-8"></div>
               </header>
-              <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
-                  <Input name="name" label="Full Name" value={formData.name} onChange={handleInputChange} required />
-                  <Input name="email" label="Email Address" type="email" value={formData.email} onChange={handleInputChange} required />
-                  <Input name="phone" label="Phone Number" type="tel" value={formData.phone} onChange={handleInputChange} required className="md:col-span-2" />
-                  <Input name="address1" label="Address Line 1" value={formData.address1} onChange={handleInputChange} required className="md:col-span-2" />
-                  <Input name="address2" label="Address Line 2 (Optional)" value={formData.address2} onChange={handleInputChange} className="md:col-span-2" />
-                  <Input name="city" label="City" value={formData.city} onChange={handleInputChange} required />
-                  <Input name="state" label="State" value={formData.state} onChange={handleInputChange} required />
-                  <Input name="zip" label="PIN / ZIP" value={formData.zip} onChange={handleInputChange} required />
+
+              {/* Saved Addresses */}
+              {savedAddresses.length > 0 && (
+                <div className="mb-8">
+                  <p className="font-label uppercase text-[10px] tracking-[0.2em] text-on-surface-variant mb-4">Saved Addresses</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    {savedAddresses.map(addr => (
+                      <button
+                        key={addr.id}
+                        type="button"
+                        onClick={() => selectSavedAddress(addr)}
+                        className={cn(
+                          "text-left p-4 rounded-xl border transition-all",
+                          selectedAddressId === addr.id && !useNewAddress
+                            ? "border-primary bg-primary/10"
+                            : "border-outline-variant/20 hover:border-primary/40 bg-surface-container-low"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MapPin size={12} className="text-primary shrink-0 mt-0.5" />
+                            <span className="font-label uppercase text-[10px] tracking-widest text-primary">{addr.label}</span>
+                            {addr.isDefault && <span className="text-[9px] uppercase tracking-widest bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Default</span>}
+                          </div>
+                          {selectedAddressId === addr.id && !useNewAddress && (
+                            <Check size={14} className="text-primary shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-on-surface text-xs font-medium">{addr.name}</p>
+                        <p className="text-on-surface-variant text-xs">{addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}</p>
+                        <p className="text-on-surface-variant text-xs">{addr.city}, {addr.state} {addr.zip}</p>
+                        <p className="text-on-surface-variant text-xs">{addr.phone}</p>
+                      </button>
+                    ))}
+
+                    {/* Use new address card */}
+                    <button
+                      type="button"
+                      onClick={() => { setUseNewAddress(true); setSelectedAddressId(null); }}
+                      className={cn(
+                        "text-left p-4 rounded-xl border transition-all flex items-center gap-3",
+                        useNewAddress
+                          ? "border-primary bg-primary/10"
+                          : "border-outline-variant/20 border-dashed hover:border-primary/40"
+                      )}
+                    >
+                      <Plus size={16} className="text-primary shrink-0" />
+                      <span className="text-sm text-on-surface-variant">Use a different address</span>
+                      {useNewAddress && <Check size={14} className="text-primary ml-auto shrink-0" />}
+                    </button>
+                  </div>
                 </div>
-                <button type="submit" className="w-full md:w-auto px-12 py-5 bg-primary text-on-primary font-label text-xs uppercase tracking-[0.2em] font-bold shadow-2xl hover:bg-primary-container transition-all active:scale-95">
+              )}
+
+              {/* Address form — shown when using new address OR no saved addresses */}
+              <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-10">
+                {(useNewAddress || savedAddresses.length === 0) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+                    <Input name="name" label="Full Name" value={formData.name} onChange={handleInputChange} required />
+                    <Input name="email" label="Email Address" type="email" value={formData.email} onChange={handleInputChange} required />
+                    <Input name="phone" label="Phone Number" type="tel" value={formData.phone} onChange={handleInputChange} required className="md:col-span-2" />
+                    <Input name="address1" label="Address Line 1" value={formData.address1} onChange={handleInputChange} required className="md:col-span-2" />
+                    <Input name="address2" label="Address Line 2 (Optional)" value={formData.address2} onChange={handleInputChange} className="md:col-span-2" />
+                    <Input name="city" label="City" value={formData.city} onChange={handleInputChange} required />
+                    <Input name="state" label="State" value={formData.state} onChange={handleInputChange} required />
+                    <Input name="zip" label="PIN / ZIP" value={formData.zip} onChange={handleInputChange} required />
+                  </div>
+                )}
+
+                {/* Validation — require address selected or form filled */}
+                <button
+                  type="submit"
+                  disabled={!useNewAddress && !selectedAddressId && savedAddresses.length > 0}
+                  className="w-full md:w-auto px-12 py-5 bg-primary text-on-primary font-label text-xs uppercase tracking-[0.2em] font-bold shadow-2xl hover:bg-primary-container transition-all active:scale-95 disabled:opacity-40"
+                >
                   Continue to Payment
                 </button>
               </form>

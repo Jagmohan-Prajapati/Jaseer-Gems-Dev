@@ -454,7 +454,7 @@ async function startServer() {
     const take = parseInt(limit as string);
 
     try {
-      // If no search term — normal fetch
+      // No search term — normal paginated fetch
       if (!search || (search as string).trim().length < 2) {
         const [products, total] = await Promise.all([
           prisma.product.findMany({ where: baseWhere, orderBy, skip, take }),
@@ -463,38 +463,30 @@ async function startServer() {
         return res.json({ products, total });
       }
 
-      const q = (search as string).trim();
+      // Search: fetch ALL matching baseWhere, then split in JS
+      const q = (search as string).trim().toLowerCase();
 
-      // Search filter: name OR stoneColor match
-      const searchWhere = {
-        ...baseWhere,
-        OR: [
-          { name: { contains: q, mode: "insensitive" as const } },
-          { stoneColor: { contains: q, mode: "insensitive" as const } },
-        ],
-      };
+      const allProducts = await prisma.product.findMany({
+        where: baseWhere,
+        orderBy,
+      });
 
-      // Non-search (rest) filter: does NOT match search
-      const restWhere = {
-        ...baseWhere,
-        AND: [
-          { name: { not: { contains: q, mode: "insensitive" as const } } },
-          { stoneColor: { not: { contains: q, mode: "insensitive" as const } } },
-        ],
-      };
+      // Split: matched (name or stoneColor contains query) vs rest
+      const matched = allProducts.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.stoneColor && p.stoneColor.toLowerCase().includes(q))
+      );
+      const unmatched = allProducts.filter(p =>
+        !p.name.toLowerCase().includes(q) &&
+        !(p.stoneColor && p.stoneColor.toLowerCase().includes(q))
+      );
 
-      const [matchedProducts, matchedTotal, restProducts, restTotal] = await Promise.all([
-        prisma.product.findMany({ where: searchWhere, orderBy, take: 50 }),
-        prisma.product.count({ where: searchWhere }),
-        prisma.product.findMany({ where: restWhere, orderBy, skip: Math.max(0, skip - matchedTotal), take }),
-        prisma.product.count({ where: restWhere }),
-      ]);
+      // Merge: matched floated to top, then rest
+      const merged = [...matched, ...unmatched];
+      const total = merged.length;
+      const paginated = merged.slice(skip, skip + take);
 
-      // Merge: matched first, then rest — paginated correctly
-      const allProducts = [...matchedProducts, ...restProducts].slice(skip > matchedTotal ? 0 : skip - Math.min(skip, matchedTotal)).slice(0, take);
-      const total = matchedTotal + restTotal;
-
-      res.json({ products: allProducts, total, matchedCount: matchedTotal });
+      res.json({ products: paginated, total, matchedCount: matched.length });
     } catch (e) {
       res.status(500).json({ error: "Failed to fetch products" });
     }

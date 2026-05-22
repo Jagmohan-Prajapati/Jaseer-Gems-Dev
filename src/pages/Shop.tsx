@@ -81,7 +81,7 @@ export default function Shop() {
     setPriceRange({ min: '', max: '' });
     setCaratRange({ min: '', max: '' });
     setPage(1);
-    fetchProducts();
+    navigate('/shop');
   };
 
   return (

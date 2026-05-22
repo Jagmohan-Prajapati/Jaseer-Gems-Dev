@@ -60,7 +60,7 @@ export default function SearchModal({ open, onClose }: Props) {
   }, [query]);
 
   const goToProduct = (id: string) => {
-    navigate(`/products/${id}`);
+    navigate(`/shop/${id}`);
     onClose();
   };
 
