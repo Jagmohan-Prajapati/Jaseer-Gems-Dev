@@ -1,4 +1,5 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
+import type { JWTPayload } from "jose";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { getPrisma } from "./src/lib/prisma.ts";
@@ -49,6 +50,16 @@ const sendOtpEmail = async (email: string, otp: string, type: "verify" | "reset"
 };
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "default_secret_change_me");
+
+interface AuthUser extends JWTPayload {
+  id: string;
+  email: string;
+  role: string;
+}
+
+interface AuthRequest extends Request {
+  user: AuthUser;
+}
 
 async function startServer() {
   const app = express();
@@ -229,12 +240,13 @@ async function startServer() {
   });
 
   // Auth middleware — any logged in user
-  const isAuth = async (req: any, res: any, next: any) => {
+  const isAuth = async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
+
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
-      req.user = payload;
+      (req as AuthRequest).user = payload as AuthUser;
       next();
     } catch (e) {
       res.status(401).json({ error: "Invalid token" });
@@ -242,11 +254,12 @@ async function startServer() {
   };
 
   // GET user profile
-  app.get("/api/user/profile", isAuth, async (req, res) => {
+  app.get("/api/user/profile", isAuth, async (req: Request, res: Response) => {
     const prisma = getPrisma();
+    const authReq = req as AuthRequest;
     try {
       const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
+        where: { id: authReq.user.id },
         select: { id: true, name: true, email: true, phone: true, createdAt: true },
       });
       res.json(user);
@@ -256,12 +269,13 @@ async function startServer() {
   });
 
   // UPDATE user profile
-  app.patch("/api/user/profile", isAuth, async (req, res) => {
+  app.patch("/api/user/profile", isAuth, async (req: Request, res: Response) => {
     const prisma = getPrisma();
+    const authReq = req as AuthRequest;
     try {
       const { name, phone } = req.body;
       const user = await prisma.user.update({
-        where: { id: req.user.id },
+        where: { id: authReq.user.id },
         data: { name, phone },
         select: { id: true, name: true, email: true, phone: true },
       });
@@ -272,18 +286,19 @@ async function startServer() {
   });
 
   // CHANGE password (from account page)
-  app.patch("/api/user/change-password", isAuth, async (req, res) => {
+  app.patch("/api/user/change-password", isAuth, async (req: Request, res: Response) => {
     const prisma = getPrisma();
+    const authReq = req as AuthRequest;
     try {
       const { currentPassword, newPassword } = req.body;
-      const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+      const user = await prisma.user.findUnique({ where: { id: authReq.user.id } });
       if (!user) return res.status(404).json({ error: "User not found" });
 
       const valid = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!valid) return res.status(400).json({ error: "Current password is incorrect" });
 
       const passwordHash = await bcrypt.hash(newPassword, 12);
-      await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash } });
+      await prisma.user.update({ where: { id: authReq.user.id }, data: { passwordHash } });
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Failed to change password" });
@@ -291,11 +306,12 @@ async function startServer() {
   });
 
   // GET all addresses for logged-in user
-  app.get("/api/user/addresses", isAuth, async (req, res) => {
+  app.get("/api/user/addresses", isAuth, async (req: Request, res: Response) => {
     const prisma = getPrisma();
+    const authReq = req as AuthRequest;
     try {
       const addresses = await prisma.address.findMany({
-        where: { userId: req.user.id },
+        where: { userId: authReq.user.id },
         orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
       });
       res.json(addresses);
@@ -305,21 +321,22 @@ async function startServer() {
   });
 
   // ADD new address
-  app.post("/api/user/addresses", isAuth, async (req, res) => {
+  app.post("/api/user/addresses", isAuth, async (req: Request, res: Response) => {
     const prisma = getPrisma();
+    const authReq = req as AuthRequest;
     try {
       const { label, name, phone, line1, line2, city, state, zip, country, isDefault } = req.body;
 
       // If new address is default, unset all others first
       if (isDefault) {
         await prisma.address.updateMany({
-          where: { userId: req.user.id },
+          where: { userId: authReq.user.id },
           data: { isDefault: false },
         });
       }
 
       const address = await prisma.address.create({
-        data: { userId: req.user.id, label, name, phone, line1, line2, city, state, zip, country: country || "United States", isDefault: isDefault || false },
+        data: { userId: authReq.user.id, label, name, phone, line1, line2, city, state, zip, country: country || "United States", isDefault: isDefault || false },
       });
       res.json(address);
     } catch (e) {
@@ -335,7 +352,7 @@ async function startServer() {
 
       if (isDefault) {
         await prisma.address.updateMany({
-          where: { userId: req.user.id },
+          where: { userId: (req as any).user.id },
           data: { isDefault: false },
         });
       }
@@ -365,8 +382,9 @@ async function startServer() {
   app.get("/api/orders/my", isAuth, async (req, res) => {
     const prisma = getPrisma();
     try {
+      const authReq = req as AuthRequest;
       const orders = await prisma.order.findMany({
-        where: { userId: req.user.id },
+        where: { userId: authReq.user.id },
         orderBy: { createdAt: "desc" },
         include: {
           items: {

@@ -26,7 +26,7 @@ export default function Shop() {
   const navigate = useNavigate();
 
   // Filters
-  const [stoneColor, setStoneColor] = useState([]);
+  const [stoneColor, setStoneColor] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [caratRange, setCaratRange] = useState({ min: '', max: '' });
   const [sort, setSort] = useState('newest');
