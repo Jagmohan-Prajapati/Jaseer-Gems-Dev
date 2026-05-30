@@ -53,7 +53,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="font-body text-on-surface-variant text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto mb-12"
           >
-            Hand-selected treasures from the heart of Jaipur, curated for those who appreciate the eternal dance of light and stone.
+            Hand-selected treasures curated for those who appreciate the timeless interplay of light, rarity, and craftsmanship.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -167,7 +167,7 @@ export default function Home() {
                  <span className="font-label text-xs uppercase tracking-[0.4em] text-primary">Masterpiece Spotlight</span>
                  <h2 className="font-headline text-5xl md:text-7xl text-on-surface italic leading-tight">The Blue Sapphire Reserve</h2>
                  <p className="font-body text-on-surface-variant text-lg font-light leading-relaxed">
-                    Sourced from the historic Ratnapura mines, our current collection features rare cornflower blue sapphires with exceptional internal fire. Each stone is appraised by our head curator in Jaipur.
+                    Sourced from the historic Ratnapura mines, our current collection features rare cornflower blue sapphires with exceptional internal fire. Each stone is carefully evaluated for quality, character, and brilliance.
                  </p>
                  <Link to="/shop?stoneType=Sapphire" className="flex items-center gap-4 text-primary font-label text-xs uppercase tracking-[0.2em] group">
                     Explore Collection <ArrowRight size={16} className="transition-transform group-hover:translate-x-2" />
